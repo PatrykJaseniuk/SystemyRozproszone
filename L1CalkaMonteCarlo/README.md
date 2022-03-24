@@ -1,4 +1,4 @@
 # calka monte carlo
 
-aby skompilowac nalezy wykonsc instrukcje:
+aby skompilowac nalezy wykonac instrukcje:
 `gcc calka.c -lm -Wall`

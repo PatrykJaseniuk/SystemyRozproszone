@@ -21,7 +21,7 @@ char *odpowiedz(int iloscLosowan, float wynikCalki, int czasObliczen)
   strcat(odpowiedz, text);
 
   strcat(odpowiedz, "\nOszacowanie wartości calki: ");
-  gcvt(wynikCalki, 4, text);
+  gcvt(wynikCalki, 6, text);
   strcat(odpowiedz, text);
   strcat(odpowiedz, "\nCzas obliczeń [s]: ");
   sprintf(text, "%d", czasObliczen);
@@ -55,7 +55,7 @@ float obliczAlfa(float xMin, float xMax, float yMin, float yMax, int iloscLosowa
   return (float)licznikTrafien / (float)iloscLosowan;
 }
 
-float obliczCalke(iloscLosowan)
+float obliczCalke(int iloscLosowan)
 {
   float xMin = 0;
   float xMax = 2;
@@ -90,7 +90,7 @@ int main(int argC, char **arg)
     iloscLosowan = atoi(arg[1]);
   }
 
-  // clock_t begin = clock();
+  // clock_tgit begin = clock();
   float calka = obliczCalke(iloscLosowan);
   // clock_t end = clock();
   // int time_spent = (int)((end - begin) / CLOCKS_PER_SEC);
