@@ -5,7 +5,7 @@
 #include <math.h>
 #include <time.h>
 
-char *odpowiedz(int iloscLosowan, float wynikCalki, int czasObliczen)
+char *odpowiedz(int iloscLosowan, float wynikCalki, float czasObliczen)
 {
   char text[20];
   char *odpowiedz = (char *)malloc(10000 * sizeof(char));
@@ -24,7 +24,8 @@ char *odpowiedz(int iloscLosowan, float wynikCalki, int czasObliczen)
   gcvt(wynikCalki, 6, text);
   strcat(odpowiedz, text);
   strcat(odpowiedz, "\nCzas obliczeń [s]: ");
-  sprintf(text, "%d", czasObliczen);
+  gcvt(czasObliczen, 6, text);
+  // sprintf(text, "%d", czasObliczen);
   strcat(odpowiedz, text);
   strcat(odpowiedz, "\n");
   return odpowiedz;
@@ -90,12 +91,12 @@ int main(int argC, char **arg)
     iloscLosowan = atoi(arg[1]);
   }
 
-  // clock_tgit begin = clock();
+  clock_t begin = clock();
   float calka = obliczCalke(iloscLosowan);
-  // clock_t end = clock();
-  // int time_spent = (int)((end - begin) / CLOCKS_PER_SEC);
+  clock_t end = clock();
+  float time_spent = ((float)(end - begin) / CLOCKS_PER_SEC);
 
-  char *odpowiedx = odpowiedz(iloscLosowan, calka, 2);
+  char *odpowiedx = odpowiedz(iloscLosowan, calka, time_spent);
   printf("%s", odpowiedx);
   // printf(arg[1]);
   zapiszDoPliku(odpowiedx);
