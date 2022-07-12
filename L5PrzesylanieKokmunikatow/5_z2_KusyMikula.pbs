@@ -1,0 +1,6 @@
+#!/bin/bash
+#PBS -N 5_z1_KusyMikula
+#PBS -j oe
+#PBS -l nodes=2:ppn=1
+mpirun -np 2 --host p200:2, p201:2,p203:2,p204:2,p205:2 5_z1_KusyMikula 1000
+

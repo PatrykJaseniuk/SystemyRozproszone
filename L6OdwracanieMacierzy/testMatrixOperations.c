@@ -31,7 +31,7 @@ int main()
     makeIdentity(&result);
 
     printf("gausJordanElimination(&matrix, &result);:\n");
-    gausJordanElimination(&matrix, &result);
+    gaussJordanElimination(&matrix, &result);
     printMatrix(&result);
     printMatrix(&matrix);
 
