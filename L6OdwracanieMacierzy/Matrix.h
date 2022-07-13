@@ -1,8 +1,23 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+int const MASTER_RANK;
 int world_size;
 int world_rank;
+int world_size;
+int world_rank;
+char processor_name[MPI_MAX_PROCESSOR_NAME];
+int name_len;
+
+void handelError(int result)
+{
+    // get error message
+    char error_message[MPI_MAX_ERROR_STRING];
+    int error_string_length;
+    MPI_Error_string(result, error_message, &error_string_length);
+    printf("Error in processor:%s, rank: %d\n message: %s\n", processor_name, world_rank, error_message);
+    MPI_Abort(MPI_COMM_WORLD, 1);
+}
 
 struct Matrix
 {
@@ -125,8 +140,6 @@ void zeroLowerTriangle(struct Matrix *m, struct Matrix *result)
         {
             return;
         }
-        // printf("column: %d\n", column);
-        // printMatrix(m);
     }
 }
 void zeroKolumnAboveDiagonal(struct Matrix *m, struct Matrix *result, int column)
@@ -146,16 +159,87 @@ void zeroUpperTriangle(struct Matrix *m, struct Matrix *result)
     }
 }
 
-void gaussJordanElimination(struct Matrix *m, struct Matrix *result)
+void gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
 {
-    zeroLowerTriangle(m, result);
 
-    if (isSingular)
+    for (int column = 0; column < matrix->nb_columns; column++)
     {
-        printf("Matrix is singular\n");
-        return;
+        if (world_rank == MASTER_RANK)
+        {
+            // make diagonal 1
+            float diagonal = getValue(matrix, column, column);
+            if (diagonal <= 1e-6 && diagonal >= -1e-6)
+            {
+                printf("Matrix is singular\n");
+                return;
+            }
+            multiplyRowByScalar(matrix, column, 1.0 / diagonal);
+            multiplyRowByScalar(inversMatrix, column, 1.0 / diagonal);
+        }
+
+        // tutaj zrownolegle
+        // wyliczanie liczby linin na proces im nizej tym mnije lini zostalo
+        int pozostaleWiersze = matrix->nb_lines - column - 1;
+        int linesPerProcess = pozostaleWiersze / world_size;
+        int resztaLini = pozostaleWiersze % world_size;
+        int startingLine;
+        int endingLine;
+
+        if (world_rank == MASTER_RANK)
+        {
+            startingLine = column + 1;
+            endingLine = startingLine + linesPerProcess + resztaLini;
+            printf("linesPerProcessMaster: %d\n", linesPerProcess);
+        }
+        else
+        {
+            printf("linesPerPoroces: %d\n", linesPerProcess);
+            startingLine = column + 1 + resztaLini + world_rank * linesPerProcess;
+            endingLine = startingLine + linesPerProcess;
+            //     startingLine = column + 1;
+            //     endingLine = matrix->nb_lines;
+        }
+
+        for (int row = startingLine; row < endingLine; row++)
+        {
+            float factor = getValue(matrix, row, column);
+            multiplyRowByScalarAndAddToRow(matrix, row, -factor, column);
+            multiplyRowByScalarAndAddToRow(inversMatrix, row, -factor, column);
+        }
+        // all proceses send its part to master, master assembly it and broadcast complit matrixes to all processes
+        printf("world_rank: %d\n", world_rank);
+        printf("MASTER_RANK: %d\n", MASTER_RANK);
+        if (world_rank == MASTER_RANK)
+        {
+            // assemble lines from all processes
+            for (int i = 1; i < world_size; i++)
+            {
+                float *wskNaMiejsceGdzieMajaBycZapisaneDane = matrix->data + ((column + resztaLini + 1 + linesPerProcess * i) * matrix->nb_columns);
+                MPI_Recv(wskNaMiejsceGdzieMajaBycZapisaneDane, linesPerProcess * matrix->nb_columns, MPI_FLOAT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                wskNaMiejsceGdzieMajaBycZapisaneDane = inversMatrix->data + ((column + resztaLini + 1 + linesPerProcess * i) * matrix->nb_columns);
+                MPI_Recv(wskNaMiejsceGdzieMajaBycZapisaneDane, linesPerProcess * matrix->nb_columns, MPI_FLOAT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+        }
+        else
+        {
+            printf("sending data to master\n");
+            // send lines of proces to master
+            float *wskaznikNaPoczatekDanychDoWyslania = matrix->data + ((column + resztaLini + 1 + linesPerProcess * world_rank) * matrix->nb_columns);
+            MPI_Send(wskaznikNaPoczatekDanychDoWyslania, linesPerProcess * matrix->nb_columns, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD);
+            wskaznikNaPoczatekDanychDoWyslania = inversMatrix->data + ((column + resztaLini + 1 + linesPerProcess * world_rank) * matrix->nb_columns);
+            MPI_Send(wskaznikNaPoczatekDanychDoWyslania, linesPerProcess * matrix->nb_columns, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD);
+        }
     }
-    zeroUpperTriangle(m, result);
+    for (int column = matrix->nb_columns - 1; column >= 0; column--)
+    {
+        for (int row = column - 1; row >= 0; row--)
+        {
+            float factor = getValue(matrix, row, column);
+            multiplyRowByScalarAndAddToRow(matrix, row, -factor, column);
+            multiplyRowByScalarAndAddToRow(inversMatrix, row, -factor, column);
+        }
+    }
 }
 
 struct Matrix multiplyMatrix(struct Matrix *m1, struct Matrix *m2)

@@ -27,7 +27,7 @@ echo "Copy file to other machine"
 scp ./$programName acer:$programName
 echo "Running mpi program" $programName
 cd 
-mpiexec -n 9 -hosts dell,acer ./$programName $arguments
+mpiexec -n 1 -hosts dell,acer ./$programName $arguments
 EOF
 echo "Out"
 whoami
