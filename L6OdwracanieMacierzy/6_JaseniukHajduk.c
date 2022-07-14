@@ -167,7 +167,6 @@ char isSingular = 0;
 
 void gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
 {
-
     for (int column = 0; column < matrix->nb_columns; column++)
     {
         if (world_rank == MASTER_RANK)
@@ -202,8 +201,6 @@ void gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
             printf("linesPerPoroces: %d\n", linesPerProcess);
             startingLine = column + 1 + resztaLini + world_rank * linesPerProcess;
             endingLine = startingLine + linesPerProcess;
-            //     startingLine = column + 1;
-            //     endingLine = matrix->nb_lines;
         }
 
         for (int row = startingLine; row < endingLine; row++)
@@ -239,6 +236,9 @@ void gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
     }
     for (int column = matrix->nb_columns - 1; column >= 0; column--)
     {
+
+
+        
         for (int row = column - 1; row >= 0; row--)
         {
             float factor = getValue(matrix, row, column);
@@ -268,7 +268,7 @@ struct Matrix multiplyMatrix(struct Matrix *m1, struct Matrix *m2)
     return result;
 }
 
-int checking(struct Matrix *m, struct Matrix *result)
+int check(struct Matrix *m, struct Matrix *result)
 {
     struct Matrix B = multiplyMatrix(m, result);
 
@@ -402,6 +402,7 @@ int main(int argC, char **args)
     // print 'inversMatrix':
     printf("Macierz jednostkowa:\n");
     printMatrix(&inversMatrix);
+
     gaussJordanElimination(&matrix, &inversMatrix);
 
     if (world_rank == MASTER_RANK)
@@ -415,7 +416,7 @@ int main(int argC, char **args)
         printMatrix(&inversMatrix);
 
         // checking for correctness of inversMatrix:
-        if (checking(&matrix, &inversMatrix))
+        if (check(&matrix, &inversMatrix))
         {
             printf("👌 Macierz odwrotna jest poprawna!\n");
         }
