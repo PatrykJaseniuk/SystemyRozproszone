@@ -165,7 +165,7 @@ char isSingular = 0;
 //     }
 // }
 
-void gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
+int gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
 {
     for (int column = 0; column < matrix->nb_columns; column++)
     {
@@ -176,7 +176,7 @@ void gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
             if (diagonal <= 1e-6 && diagonal >= -1e-6)
             {
                 printf("Matrix is singular\n");
-                return;
+                return 1;
             }
             multiplyRowByScalar(matrix, column, 1.0 / diagonal);
             multiplyRowByScalar(inversMatrix, column, 1.0 / diagonal);
@@ -237,8 +237,6 @@ void gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
     for (int column = matrix->nb_columns - 1; column >= 0; column--)
     {
 
-
-        
         for (int row = column - 1; row >= 0; row--)
         {
             float factor = getValue(matrix, row, column);
@@ -331,13 +329,13 @@ int main(int argC, char **args)
         // check corectness of file
 
         // take two numbers form first line and check if they are correclt
-        int n, m;
-        fscanf(file, "%d %d", &n, &m);
-        if (n != m)
-        {
-            printf("🐛 Matrix is not square!\n");
-            return 1;
-        }
+        int n;
+        fscanf(file, "%d", &n);
+        // if (n != m)
+        // {
+        //     printf("🐛 Matrix is not square!\n");
+        //     return 1;
+        // }
 
         // check if matrix is not too big
         if (n > 100)
@@ -350,6 +348,10 @@ int main(int argC, char **args)
         // check if there is equal quantity of numbers in file
         int i = 0;
         int number;
+
+        // go to next line
+        fscanf(file, "%*[^\n]\n");
+
         while (fscanf(file, "%d", &number) != EOF)
         {
             i++;
@@ -367,7 +369,7 @@ int main(int argC, char **args)
         // take matrix from file
         for (int i = 0; i < n; i++)
         {
-            for (int j = 0; j < m; j++)
+            for (int j = 0; j < n; j++)
             {
                 float value;
                 fscanf(file, "%f", &value);
@@ -403,26 +405,34 @@ int main(int argC, char **args)
     printf("Macierz jednostkowa:\n");
     printMatrix(&inversMatrix);
 
-    gaussJordanElimination(&matrix, &inversMatrix);
+    int isSingular = 0;
+    isSingular = gaussJordanElimination(&matrix, &inversMatrix);
 
     if (world_rank == MASTER_RANK)
     { // print: 'matrix':
 
-        printf("Macierz:\n");
-        printMatrix(&matrix);
-
-        // print 'inversMatrix':
-        printf("Macierz odwrotna:\n");
-        printMatrix(&inversMatrix);
-
-        // checking for correctness of inversMatrix:
-        if (check(&matrix, &inversMatrix))
+        if (isSingular)
         {
-            printf("👌 Macierz odwrotna jest poprawna!\n");
+            printf("😱mamcierz jest osobliwa😱");
         }
         else
         {
-            printf("🐛 Macierz odwrotna jest niepoprawna!\n");
+            printf("Macierz:\n");
+            printMatrix(&matrix);
+
+            // print 'inversMatrix':
+            printf("Macierz odwrotna:\n");
+            printMatrix(&inversMatrix);
+
+            // checking for correctness of inversMatrix:
+            if (check(&matrix, &inversMatrix))
+            {
+                printf("👌 Macierz odwrotna jest poprawna!\n");
+            }
+            else
+            {
+                printf("🐛 Macierz odwrotna jest niepoprawna!\n");
+            }
         }
     }
     // Finalize the MPI environment.
