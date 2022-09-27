@@ -1,0 +1,1 @@
+mpicc source/rownolegle/6_JaseniukHajduk.c -o build/odwRownolegle

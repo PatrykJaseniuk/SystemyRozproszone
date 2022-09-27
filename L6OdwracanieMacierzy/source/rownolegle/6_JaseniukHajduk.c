@@ -244,6 +244,7 @@ int gaussJordanElimination(struct Matrix *matrix, struct Matrix *inversMatrix)
             multiplyRowByScalarAndAddToRow(inversMatrix, row, -factor, column);
         }
     }
+    return 0;
 }
 
 struct Matrix multiplyMatrix(struct Matrix *m1, struct Matrix *m2)
@@ -405,12 +406,18 @@ int main(int argC, char **args)
     printf("Macierz jednostkowa:\n");
     printMatrix(&inversMatrix);
 
+    // pomiar czasu
+    double timeBegin;
+    if (world_rank == MASTER_RANK)
+    {
+        timeBegin = MPI_Wtime();
+    }
+
     int isSingular = 0;
     isSingular = gaussJordanElimination(&matrix, &inversMatrix);
 
     if (world_rank == MASTER_RANK)
-    { // print: 'matrix':
-
+    {
         if (isSingular)
         {
             printf("😱mamcierz jest osobliwa😱");
@@ -418,8 +425,12 @@ int main(int argC, char **args)
         }
         else
         {
-            printf("Macierz:\n");
-            printMatrix(&matrix);
+            // pomiar czasu
+            double timeSpend = MPI_Wtime() - timeBegin;
+            printf("czas obiczen: %.6f [s]", timeSpend);
+
+            // printf("Macierz:\n");
+            // printMatrix(&matrix);
 
             // print 'inversMatrix':
             printf("Macierz odwrotna:\n");
