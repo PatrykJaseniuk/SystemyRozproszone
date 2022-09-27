@@ -1,0 +1,1 @@
+gcc source/szeregowo/6_JaseniukHajduk.c -o build/odwSzeregowo

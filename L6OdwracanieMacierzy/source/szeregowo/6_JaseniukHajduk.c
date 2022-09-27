@@ -4,8 +4,8 @@
 // import libraries
 #include <stdio.h>
 #include <stdlib.h>
+#include "time.h"
 // #include "Matrix.h"
-
 
 // start "Matrix.h"
 struct Matrix
@@ -195,7 +195,6 @@ int checking(struct Matrix *m, struct Matrix *result)
 }
 //  end "Matrix.h"
 
-
 int main(int argC, char **args)
 {
 
@@ -283,8 +282,11 @@ int main(int argC, char **args)
     printMatrix(&inversMatrix);
 
     int isSingular = 0;
-    isSingular = gaussJordanElimination(&matrix, &inversMatrix);
 
+    clock_t begin = clock();
+    isSingular = gaussJordanElimination(&matrix, &inversMatrix);
+    clock_t end = clock();
+    float time_spent = ((float)(end - begin) / CLOCKS_PER_SEC);
     // print: 'matrix':
 
     if (isSingular)
@@ -294,8 +296,10 @@ int main(int argC, char **args)
     }
     else
     {
-        printf("Macierz:\n");
-        printMatrix(&matrix);
+        // printf("Macierz:\n");
+        // printMatrix(&matrix);
+
+        printf("czas obliczeń %.6f [s] \n", time_spent);
 
         // print 'inversMatrix':
         printf("Macierz odwrotna:\n");
