@@ -341,7 +341,7 @@ int main(int argC, char **args)
         if (n > 100)
         {
             printf("🐛 Matrix is too big!\n");
-            return 1;
+            return 2;
         }
 
         int quantity = n * n;
@@ -359,7 +359,7 @@ int main(int argC, char **args)
         if (i != quantity)
         {
             printf("🐛 Wrong quantity of numbers!\n");
-            return 1;
+            return 2;
         }
 
         // set readnig from second line
@@ -414,6 +414,7 @@ int main(int argC, char **args)
         if (isSingular)
         {
             printf("😱mamcierz jest osobliwa😱");
+            return 3;
         }
         else
         {

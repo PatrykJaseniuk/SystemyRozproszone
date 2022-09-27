@@ -1,6 +1,13 @@
-#include <stdlib.h>
-#include <stdio.h>
+// Autorzy: Patryk Jaseniuk; Franciszek Hajduk @ Konto: PR1g1
+// Cwiczenie: 2, Data opracowania: 2022-07-05, Wersja: 2
 
+// import libraries
+#include <stdio.h>
+#include <stdlib.h>
+// #include "Matrix.h"
+
+
+// start "Matrix.h"
 struct Matrix
 {
     int nb_lines;
@@ -185,4 +192,123 @@ int checking(struct Matrix *m, struct Matrix *result)
         }
     }
     return 1;
+}
+//  end "Matrix.h"
+
+
+int main(int argC, char **args)
+{
+
+    struct Matrix matrix;
+    // check if there is only one argument
+    if (argC != 2)
+    {
+        printf("🐛 Wrong number of arguments!\n");
+        return 1;
+    }
+
+    // open file
+    FILE *file = fopen(args[1], "r");
+    if (file == NULL)
+    {
+        printf("🐛 Cannot open file!\n");
+        return 1;
+    }
+
+    // check corectness of file
+
+    // take two numbers form first line and check if they are correclt
+    int n;
+    fscanf(file, "%d", &n);
+    // if (n != m)
+    // {
+    //     printf("🐛 Matrix is not square!\n");
+    //     return 1;
+    // }
+
+    // check if matrix is not too big
+    if (n > 100)
+    {
+        printf("🐛 Matrix is too big!\n");
+        return 2;
+    }
+
+    int quantity = n * n;
+    // check if there is equal quantity of numbers in file
+    int i = 0;
+    int number;
+
+    // go to next line
+    fscanf(file, "%*[^\n]\n");
+
+    while (fscanf(file, "%d", &number) != EOF)
+    {
+        i++;
+    }
+    if (i != quantity)
+    {
+        printf("🐛 Wrong quantity of numbers!\n");
+        return 2;
+    }
+
+    // set readnig from second line
+    fseek(file, 3, SEEK_SET);
+
+    allocateMatrix(&matrix, n, n);
+    // take matrix from file
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            float value;
+            fscanf(file, "%f", &value);
+            setValue(&matrix, i, j, value);
+        }
+    }
+    // close file
+    fclose(file);
+
+    // print size of matrix
+    printf("sieze of matrix: %ld\n", sizeof(matrix));
+
+    printf("Macierz:\n");
+    printMatrix(&matrix);
+
+    struct Matrix inversMatrix;
+    allocateMatrix(&inversMatrix, matrix.nb_columns, matrix.nb_columns);
+    makeIdentity(&inversMatrix);
+
+    // print 'inversMatrix':
+    printf("Macierz jednostkowa:\n");
+    printMatrix(&inversMatrix);
+
+    int isSingular = 0;
+    isSingular = gaussJordanElimination(&matrix, &inversMatrix);
+
+    // print: 'matrix':
+
+    if (isSingular)
+    {
+        printf("😱mamcierz jest osobliwa😱");
+        return 3;
+    }
+    else
+    {
+        printf("Macierz:\n");
+        printMatrix(&matrix);
+
+        // print 'inversMatrix':
+        printf("Macierz odwrotna:\n");
+        printMatrix(&inversMatrix);
+
+        // checking for correctness of inversMatrix:
+        if (checking(&matrix, &inversMatrix))
+        {
+            printf("👌 Macierz odwrotna jest poprawna!\n");
+        }
+        else
+        {
+            printf("🐛 Macierz odwrotna jest niepoprawna!\n");
+        }
+    }
 }
