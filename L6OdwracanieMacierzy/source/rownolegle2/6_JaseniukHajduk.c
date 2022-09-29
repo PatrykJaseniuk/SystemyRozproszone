@@ -184,6 +184,10 @@ void zeroKolumnBelowDiagonal(struct Matrix *m, struct Matrix *result, int column
     // wyślij każdemu aktualną macierz i nr wierszy do modyfikacji i nr zerowanej kolumny
     for (int nrPracownika = 1; nrPracownika < world_size; nrPracownika++)
     {
+        // wyslij info żeby pracownik dzialal
+        int dzialaj = 1;
+        (MPI_Send(&dzialaj, 1, MPI_INT, nrPracownika, 10, MPI_COMM_WORLD));
+
         (MPI_Send((m->data), m->nb_lines * m->nb_lines, MPI_FLOAT, nrPracownika, 1, MPI_COMM_WORLD));
         (MPI_Send((result->data), result->nb_lines * result->nb_lines, MPI_FLOAT, nrPracownika, 1, MPI_COMM_WORLD));
 
@@ -257,6 +261,10 @@ void zeroKolumnAboveDiagonal(struct Matrix *m, struct Matrix *result, int column
     // wyślij każdemu aktualne macierze i nr wierszy do modyfikacji i nr zerowanej kolumny
     for (int nrPracownika = 1; nrPracownika < world_size; nrPracownika++) // lepiej by był użyć MPI_Bcast ale coś mi nie działało
     {
+        // wyslij info żeby pracownik dzialal
+        int dzialaj = 1;
+        (MPI_Send(&dzialaj, 1, MPI_INT, nrPracownika, 10, MPI_COMM_WORLD));
+
         (MPI_Send((m->data), m->nb_lines * m->nb_lines, MPI_FLOAT, nrPracownika, 1, MPI_COMM_WORLD));
         (MPI_Send((result->data), result->nb_lines * result->nb_lines, MPI_FLOAT, nrPracownika, 1, MPI_COMM_WORLD));
 
@@ -469,6 +477,13 @@ int master(int argC, char **args)
             printf("🐛 Macierz odwrotna jest niepoprawna!\n");
         }
     }
+
+    for (int nrPracownika = 1; nrPracownika < world_size; nrPracownika++) // lepiej by był użyć MPI_Bcast ale coś mi nie działało
+    {
+        // wyslij info żeby pracownik przestal dzialac
+        int dzialaj = 0;
+        (MPI_Send(&dzialaj, 1, MPI_INT, nrPracownika, 10, MPI_COMM_WORLD));
+    }
 }
 
 void worker()
@@ -486,8 +501,16 @@ void worker()
     allocateMatrix(&m2, rozmiar, rozmiar);
     // printf("worker[%d] inicialized matrix: \n", world_rank);
     // printMatrix(&m1);
-    while (1)
+
+    int czyDzialac = 1;
+
+    while (czyDzialac)
     {
+        MPI_Recv(&czyDzialac, 1, MPI_INT, MASTER_RANK, 10, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        if (!czyDzialac)
+        {
+            break;
+        }
         // odbierz macierze i nr wierszy do modyfikacji i nr zerowanej kolumny
         MPI_Recv(((&m1)->data), (&m1)->nb_lines * (&m1)->nb_lines, MPI_FLOAT, MASTER_RANK, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(((&m2)->data), (&m2)->nb_lines * (&m2)->nb_lines, MPI_FLOAT, MASTER_RANK, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
