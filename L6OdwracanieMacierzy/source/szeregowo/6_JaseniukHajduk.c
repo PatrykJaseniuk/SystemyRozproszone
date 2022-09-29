@@ -110,7 +110,6 @@ void zeroKolumnBelowDiagonal(struct Matrix *m, struct Matrix *result, int column
     multiplyRowByScalar(result, column, 1.0 / diagonal);
 
     // tutaj zrownolegle
-    // wyliczanie liczby
 
     for (int row = column + 1; row < m->nb_lines; row++)
     {

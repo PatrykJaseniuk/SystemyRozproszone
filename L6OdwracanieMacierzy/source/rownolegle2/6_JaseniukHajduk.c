@@ -158,7 +158,7 @@ int checking(struct Matrix *m, struct Matrix *result)
 // Funkcje służące do odwrocenia macierzy metodą Gausa-Jordana
 void zeroKolumnBelowDiagonal(struct Matrix *m, struct Matrix *result, int column)
 {
-    printf("zerowanie kolumny%d", column);
+    // printf("zerowanie kolumny%d", column);
     // make diagonal 1
     float diagonal = getValue(m, column, column);
     if (diagonal <= 1e-6 && diagonal >= -1e-6)
@@ -226,13 +226,13 @@ void zeroKolumnBelowDiagonal(struct Matrix *m, struct Matrix *result, int column
     // // zatrzymanie
     // MPI_Recv(m, 1, MPI_FLOAT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // // wersjasekwencyjna
-    //     for (int row = column + 1; row < m->nb_lines; row++)
-    //     {
-    //         float factor = getValue(m, row, column);
-    //         multiplyRowByScalarAndAddToRow(m, row, -factor, column);
-    //         multiplyRowByScalarAndAddToRow(result, row, -factor, column);
-    //     }
+    // wersjasekwencyjna
+    // for (int row = column + 1; row < m->nb_lines; row++)
+    // {
+    //     float factor = getValue(m, row, column);
+    //     multiplyRowByScalarAndAddToRow(m, row, -factor, column);
+    //     multiplyRowByScalarAndAddToRow(result, row, -factor, column);
+    // }
 }
 
 void zeroLowerTriangle(struct Matrix *m, struct Matrix *result)
@@ -248,12 +248,58 @@ void zeroLowerTriangle(struct Matrix *m, struct Matrix *result)
 }
 void zeroKolumnAboveDiagonal(struct Matrix *m, struct Matrix *result, int column)
 {
+
+    // podziel wiersze do modyfikacji pomiedzy dostępnych robotników
+    int pozostaleWiersze = column;
+    int wierszeNaRobotnika = pozostaleWiersze / world_size;
+    int resztaWierszy = pozostaleWiersze % (world_size); // master weźmie jeden przydział i resztę
+
+    // wyślij każdemu aktualne macierze i nr wierszy do modyfikacji i nr zerowanej kolumny
+    for (int nrPracownika = 1; nrPracownika < world_size; nrPracownika++) // lepiej by był użyć MPI_Bcast ale coś mi nie działało
+    {
+        (MPI_Send((m->data), m->nb_lines * m->nb_lines, MPI_FLOAT, nrPracownika, 1, MPI_COMM_WORLD));
+        (MPI_Send((result->data), result->nb_lines * result->nb_lines, MPI_FLOAT, nrPracownika, 1, MPI_COMM_WORLD));
+
+        int pierwszyIOstatniWiersz[2];
+        pierwszyIOstatniWiersz[0] = column - 1 - (nrPracownika - 1) * wierszeNaRobotnika;
+        pierwszyIOstatniWiersz[1] = pierwszyIOstatniWiersz[0] - wierszeNaRobotnika;
+
+        (MPI_Send(pierwszyIOstatniWiersz, 2, MPI_INT, nrPracownika, 2, MPI_COMM_WORLD));
+
+        (MPI_Send(&column, 1, MPI_INT, nrPracownika, 3, MPI_COMM_WORLD));
+    }
+
+    // maser robi swoj przydzial
     for (int row = column - 1; row >= 0; row--)
     {
         float factor = getValue(m, row, column);
+        printf("factor: %f", factor);
         multiplyRowByScalarAndAddToRow(m, row, -factor, column);
         multiplyRowByScalarAndAddToRow(result, row, -factor, column);
     }
+
+    // odbierz zmodyfikowane wiersze od robotników i scal je w nową macierz
+    for (int nrPracownika = 1; nrPracownika < world_size; nrPracownika++)
+    {
+        int pierwszyIOstatniWiersz[2];
+        pierwszyIOstatniWiersz[0] = column - 1 - (nrPracownika - 1) * wierszeNaRobotnika;
+        pierwszyIOstatniWiersz[1] = pierwszyIOstatniWiersz[0] - wierszeNaRobotnika;
+        int iloscDanychDoOdebrania = wierszeNaRobotnika * m->nb_columns;
+        float *wskNaPoczatekDanych1 = ((m)->data) + ((pierwszyIOstatniWiersz[1] + 1) * (m)->nb_columns); // dodawanie do wskaźnika przesuwa wskaźnik
+        float *wskNaPoczatekDanych2 = (result->data) + ((pierwszyIOstatniWiersz[1] + 1) * (result)->nb_columns);
+
+        MPI_Recv(wskNaPoczatekDanych1, iloscDanychDoOdebrania, MPI_FLOAT, nrPracownika, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(wskNaPoczatekDanych2, iloscDanychDoOdebrania, MPI_FLOAT, nrPracownika, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    // printf("odebrana macierz:\n");
+    // printMatrix(m);
+
+    // for (int row = column - 1; row >= 0; row--)
+    // {
+    //     float factor = getValue(m, row, column);
+    //     multiplyRowByScalarAndAddToRow(m, row, -factor, column);
+    //     multiplyRowByScalarAndAddToRow(result, row, -factor, column);
+    // }
 }
 void zeroUpperTriangle(struct Matrix *m, struct Matrix *result)
 {
@@ -404,8 +450,8 @@ int master(int argC, char **args)
     }
     else
     {
-        // printf("Macierz:\n");
-        // printMatrix(&matrix);
+        printf("Macierz:\n");
+        printMatrix(&matrix);
 
         printf("czas obliczeń %.6f [s] \n", time_spent);
 
@@ -427,19 +473,19 @@ int master(int argC, char **args)
 
 void worker()
 {
-    printf("worker rank: %d is working\n", world_rank);
+    // printf("worker rank: %d is working\n", world_rank);
 
     // odbierz info o rozmiarze macierzy
     int rozmiar;
     MPI_Recv(&rozmiar, 1, MPI_INT, MASTER_RANK, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    printf("worker[%d] rozmiar: %d\n", world_rank, rozmiar);
+    // printf("worker[%d] rozmiar: %d\n", world_rank, rozmiar);
 
     // incicjalizu macierze
     struct Matrix m1, m2; // dlaczego jest problem kiedy zdefiniuje wskaxniki?
     allocateMatrix(&m1, rozmiar, rozmiar);
     allocateMatrix(&m2, rozmiar, rozmiar);
-    printf("worker[%d] inicialized matrix: \n", world_rank);
-    printMatrix(&m1);
+    // printf("worker[%d] inicialized matrix: \n", world_rank);
+    // printMatrix(&m1);
     while (1)
     {
         // odbierz macierze i nr wierszy do modyfikacji i nr zerowanej kolumny
@@ -455,20 +501,54 @@ void worker()
         int kolumnaDoZerowania;
         MPI_Recv(&kolumnaDoZerowania, 1, MPI_INT, MASTER_RANK, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        // modyfikuj wiersze
-        for (int row = pierwszyIOstatniWiersz[0]; row < pierwszyIOstatniWiersz[1]; row++)
+        int czyZerowanieDolnegoTrojkata = pierwszyIOstatniWiersz[0] <= pierwszyIOstatniWiersz[1];
+        if (czyZerowanieDolnegoTrojkata)
         {
-            float factor = getValue(&m1, row, kolumnaDoZerowania);
-            multiplyRowByScalarAndAddToRow(&m1, row, -factor, kolumnaDoZerowania);
-            multiplyRowByScalarAndAddToRow(&m2, row, -factor, kolumnaDoZerowania);
-        }
+            // modyfikuj wiersze
+            for (int row = pierwszyIOstatniWiersz[0]; row < pierwszyIOstatniWiersz[1]; row++)
+            {
+                float factor = getValue(&m1, row, kolumnaDoZerowania);
+                multiplyRowByScalarAndAddToRow(&m1, row, -factor, kolumnaDoZerowania);
+                multiplyRowByScalarAndAddToRow(&m2, row, -factor, kolumnaDoZerowania);
+            }
 
-        // prześlij zmodyfikowane wiersze
-        int iloscDanychDoPrzeslania = (pierwszyIOstatniWiersz[1] - pierwszyIOstatniWiersz[0]) * (&m1)->nb_columns;
-        float *wskNaPoczatekDanych1 = ((&m1)->data) + (pierwszyIOstatniWiersz[0] * (&m1)->nb_columns); // dodawanie do wskaźnika przesuwa wskaźnik
-        float *wskNaPoczatekDanych2 = ((&m2)->data) + (pierwszyIOstatniWiersz[0] * (&m2)->nb_columns); //
-        (MPI_Send(wskNaPoczatekDanych1, iloscDanychDoPrzeslania, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD));
-        (MPI_Send(wskNaPoczatekDanych2, iloscDanychDoPrzeslania, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD));
+            // prześlij zmodyfikowane wiersze
+            int iloscDanychDoPrzeslania = (pierwszyIOstatniWiersz[1] - pierwszyIOstatniWiersz[0]) * (&m1)->nb_columns;
+            float *wskNaPoczatekDanych1 = ((&m1)->data) + (pierwszyIOstatniWiersz[0] * (&m1)->nb_columns); // dodawanie do wskaźnika przesuwa wskaźnik
+            float *wskNaPoczatekDanych2 = ((&m2)->data) + (pierwszyIOstatniWiersz[0] * (&m2)->nb_columns); //
+            (MPI_Send(wskNaPoczatekDanych1, iloscDanychDoPrzeslania, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD));
+            (MPI_Send(wskNaPoczatekDanych2, iloscDanychDoPrzeslania, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD));
+        }
+        else // zerowanie gornego trojkata
+        {
+            // modyfikuj wiersze
+            printf("worker[%d] get lines: %d:%d \n", world_rank, pierwszyIOstatniWiersz[0], pierwszyIOstatniWiersz[1]);
+
+            for (int row = pierwszyIOstatniWiersz[0]; row > pierwszyIOstatniWiersz[1]; row--)
+            {
+                float factor = getValue(&m1, row, kolumnaDoZerowania);
+                // float factor = 10;
+                multiplyRowByScalarAndAddToRow(&m1, row, -factor, kolumnaDoZerowania);
+                multiplyRowByScalarAndAddToRow(&m2, row, -factor, kolumnaDoZerowania);
+            }
+
+            // multiplyRowByScalar(&m1, 0, 10);
+            // multiplyRowByScalar(&m1, 1, 10);
+            // multiplyRowByScalar(&m1, 2, 10);
+            // multiplyRowByScalar(&m1, 3, 10);
+            // multiplyRowByScalar(&m1, 4, 10);
+            // multiplyRowByScalar(&m2, 0, 10);
+            // multiplyRowByScalar(&m2, 1, 10);
+            // multiplyRowByScalar(&m2, 2, 10);
+            // // multiplyRowByScalar(&m2, 3, 10);
+            // multiplyRowByScalar(&m2, 4, 10);
+            // prześlij zmodyfikowane wiersze
+            int iloscDanychDoPrzeslania = (pierwszyIOstatniWiersz[0] - pierwszyIOstatniWiersz[1]) * (&m1)->nb_columns;
+            float *wskNaPoczatekDanych1 = ((&m1)->data) + ((pierwszyIOstatniWiersz[1] + 1) * (&m1)->nb_columns); // dodawanie do wskaźnika przesuwa wskaźnik
+            float *wskNaPoczatekDanych2 = ((&m2)->data) + ((pierwszyIOstatniWiersz[1] + 1) * (&m2)->nb_columns); //
+            (MPI_Send(wskNaPoczatekDanych1, iloscDanychDoPrzeslania, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD));
+            (MPI_Send(wskNaPoczatekDanych2, iloscDanychDoPrzeslania, MPI_FLOAT, MASTER_RANK, 0, MPI_COMM_WORLD));
+        }
     }
 }
 
@@ -501,7 +581,7 @@ int main(int argC, char **args)
     }
 
     // Finalize the MPI environment.
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
     return result;
 }
